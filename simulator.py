@@ -70,10 +70,10 @@ class State(object):
         student[1] += self.student_perf_change(student[0],
                                                self.region_states[region][0],
                                                student[2], cache)
-      for _ in self.students_per_year[region]:
+      """for _ in self.students_per_year[region]:
         copy = random.sample(self.region_states[region][1],1)
         copy[2] = 0 # Set age back to 0
-        self.region_states[region][1].append(copy)
+        self.region_states[region][1].append(copy)"""
       self.region_states[region][1] = filter(lambda student: student[2]<=18,
                                         self.region_states[region][1])
     self.school_perf = {id:(cache[id][0] if id in cache else 0) \
