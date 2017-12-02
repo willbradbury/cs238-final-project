@@ -40,7 +40,8 @@ class State(object):
                           for id in self.school_states}
     allocations_sum = sum(allocations.values())
     for school in self.school_states:
-      self.school_states[school][1] = float(allocations[school])/allocations_sum
+      self.school_states[school][1] = self.total_budget*float(allocations[school]) \
+                                        / allocations_sum
 
   def student_perf_change(self, income, school_id, age, cache):
     if school_id in cache:
