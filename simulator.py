@@ -3,15 +3,6 @@ import random
 import math
 
 class State(object):
-  school_states = {}
-  region_states = {}
-  total_budget = 0
-  remaining_iters = 0
-  students_per_year = {}
-  school_perf = {}
-
-  initial_params = {}
-
   def __init__(self, n_iters, school_configs, region_configs, district_configs):
     """ Initializes a new State object, for use in a Learner.
     Params:
