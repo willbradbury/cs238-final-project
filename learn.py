@@ -1,11 +1,10 @@
 import numpy as np
 from collections import defaultdict
-from simulator import Simulator
 
 class Learner(object):
   def __init__(self, simulator, n_epochs, alpha, gamma, exploration_param,
                     decay_param):
-    """ Learns a policy using Sarsa-Lambda given a Simulator instance.
+    """ Learns a policy using Sarsa-Lambda given a State instance.
     Params:
       simulator -- A Simulator instance.
       n_epochs -- The number of epochs the entire simulation should be run for.
@@ -22,6 +21,9 @@ class Learner(object):
     self.gamma = gamma
     self.exploration_param = exploration_param
     self.decay_param = decay_param
+
+    self.Q = defaultdict(float)
+    self.N = defaultdict(int)
 
   def explore_action(self, state):
     actions = self.simulator.possible_actions()
@@ -46,11 +48,9 @@ class Learner(object):
     return s_prime, a_prime
 
   def run(self):
-    self.Q = defaultdict(float)
-    self.N = defaultdict(int)
     for _ in xrange(self.n_epochs):
       s_t = self.simulator.get_reduced_state()
-      a_t = self.get_action()
+      a_t = self.exploration_param(s_t)
       while not self.simulator.is_finished():
         self.simulator.iterate(a_t)
         s_t, a_t = self.update_step(s_t, a_t)

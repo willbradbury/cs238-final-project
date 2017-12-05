@@ -23,11 +23,11 @@ Learner:
   fn approximation?
 '''
 from learn import Learner
-from simulator import Simulator
+from simulator import State
 
 if __name__ == '__main__':
   # initialize simulator (add params)
-  simulator = Simulator()
+  state = State()
   # initialize learner (add params)
-  learner = Learner(simulator)
+  learner = Learner(state)
   learner.run()
