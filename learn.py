@@ -4,7 +4,7 @@ from simulator import Simulator
 
 class Learner(object):
   def __init__(self, simulator, n_epochs, alpha, gamma, exploration_param,
-                decay_param):
+                    decay_param):
     """ Learns a policy using Sarsa-Lambda given a Simulator instance.
     Params:
       simulator -- A Simulator instance.
@@ -26,13 +26,13 @@ class Learner(object):
   def explore_action(self, state):
     actions = self.simulator.possible_actions()
     Q_s = np.array([self.Q[state, action] for action in actions])
-    probs = np.exp(self.exploration_param * self.Q_s)
+    probs = np.exp(self.exploration_param * Q_s)
     probs /= sum(probs)
     return np.random.choice(actions, p=probs)
 
   def optimal_action(self, state):
-    actions = self.simulator.possible_actions()
-    return max((self.Q[state, action], action) for action in actions)[1]
+    return max((self.Q[state, action], action)
+        for action in self.simulator.possible_actions())[1]
 
   def update_step(self, s_t, a_t):
     s_prime = self.simulator.get_reduced_state()
