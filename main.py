@@ -14,7 +14,20 @@ simulator is a class:
 
 Learner:
   takes in a simulator
-  pass in learning params (alpha if learning rate, gamma for discount, exploration params)
+  pass in learning params:
+    alpha if learning rate
+    gamma for discount
+    exploration params
+    num_iterations
   choose action given state
   fn approximation?
 '''
+from learn import Learner
+from simulator import Simulator
+
+if __name__ == '__main__':
+  # initialize simulator (add params)
+  simulator = Simulator()
+  # initialize learner (add params)
+  learner = Learner(simulator)
+  learner.run()
