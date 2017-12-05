@@ -50,7 +50,7 @@ class Learner(object):
   def run(self):
     for _ in xrange(self.n_epochs):
       s_t = self.simulator.get_reduced_state()
-      a_t = self.exploration_param(s_t)
+      a_t = self.explore_action(s_t)
       while not self.simulator.is_finished():
         self.simulator.iterate(a_t)
         s_t, a_t = self.update_step(s_t, a_t)
