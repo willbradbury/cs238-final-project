@@ -12,6 +12,10 @@ simulator is a class:
   reset simulator
   check if horizon reached
 
+  superintendent constraints:
+    penalized for aggressiveness
+    penalized if school perf drops too low
+
 Learner:
   takes in a simulator
   pass in learning params:
