@@ -2,6 +2,7 @@ import numpy as np
 import random
 import math
 import matplotlib.pyplot as plt
+from matplotlib.ticker import IndexLocator
 
 class State(object):
   def __init__(self, n_iters, school_configs, region_configs, district_configs):
@@ -115,31 +116,57 @@ class State(object):
     # 0 = income
     # 1 = performance
 
+    test_region_states = {
+      0: (0, [[1],[1],[1],[2],[3]]),
+      1: (0, [[1],[1],[1],[1],[1]]),
+      2: (0, [[1],[1],[1]]),
+      3: (1, [[3],[3],[3],[4],[4]])
+    }
+    self.region_states = test_region_states
+
     # Collect school metrics
     metrics = {}
     max_students_per_region = 0
     for region_id in self.region_states:
       school_id = self.region_states[region_id][0]
-      for students in self.region_states[region_id][1]:
-        num_students = len(students)
-        if num_students > max_students_per_region:
-          max_students_per_region = num_students # update max students
-        region_metrics = sorted([student[metric_id] for student in students], reverse=True)
-        metrics[school_id] = metrics[school_id].append(region_metrics)
-    max_regions_per_school = np.max([len(school_metrics) for school_metrics in metrics])
+      students = self.region_states[region_id][1]
+      num_students = len(students)
+      if num_students > max_students_per_region:
+        max_students_per_region = num_students # update max students
+      region_metrics = sorted([student[metric_id] for student in students], reverse=True)
+      if school_id in metrics:
+        metrics[school_id].append(region_metrics)
+      else:
+        metrics[school_id] = [region_metrics]
+    max_regions_per_school = np.max([len(school_metrics) for _, school_metrics in metrics.iteritems()])
 
     # Convert metrics to grid layout
     n_super_rows = len(metrics) # num schools
     n_super_cols =  max_regions_per_school # max num regions assigned to a school
-    box_dim = math.ceil(max_students_per_region**(0.5)) # square dimensions to contain max num students in a region
+    box_dim = int(math.ceil(max_students_per_region**(0.5))) # square dimensions to contain max num students in a region
+    print "n_super_rows: %d, n_super_cols: %d, box_dim: %d" % (n_super_rows, n_super_cols, box_dim)
+
     grid = np.zeros((n_super_rows * box_dim, n_super_cols * box_dim))
     for school_id, school_metrics in metrics.iteritems():
       for region_id in range(len(school_metrics)):
-        cur_box = (np.array(school_metrics[region_id])).resize((box_dim, box_dim))
-        grid[school_id:(school_id+box_dim), region_id:(region_id+box_dim)] = cur_box
+        cur_box = np.array(school_metrics[region_id])
+        cur_box.resize(box_dim, box_dim)
+        print "school_id: %d, region_id: %d" % (school_id, region_id)
+        start_row = school_id * box_dim
+        start_col = region_id * box_dim
+        grid[start_row:(start_row+box_dim), start_col:(start_col+box_dim)] = cur_box
+    print grid
 
     # Create plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
     im = plt.imshow(grid, cmap=plt.cm.plasma, interpolation='nearest', origin='upper')
+    minor_locator = IndexLocator(3, 0)
+    ax.yaxis.set_minor_locator(minor_locator)
+    ax.xaxis.set_minor_locator(minor_locator)
+    ax.grid(which = 'minor', axis='y', color='w', linewidth=5)
+    ax.grid(which = 'minor', axis='x', color='w', linewidth=2)
     plt.show()
 
-
+state = State(1, [], [], [1,2])
+state.visualize()
