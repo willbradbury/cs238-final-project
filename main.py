@@ -27,10 +27,10 @@ from simulator import State
 
 if __name__ == '__main__':
   # initialize simulator (add params)
-  state = State(50, [(0, 2000), (1, 2000), (2, 1800)],
-                    [(0, 0, 500, 1, 2), (1, 0, 500, -1, 1), (2, 1, 500, 0, 3),
-                     (3, 1, 1000, -1, 1), (4, 2, 1000, 1, 1)],
-                    (3000, 1))
+  state = State(80, [(0, 2000), (1, 2000), (2, 1800)],
+                    [(0, 0, 100, 1, 2), (1, 0, 200, -1, 1), (2, 1, 200, 0, 3),
+                     (3, 1, 200, -1, 1), (4, 2, 300, 1, 1)],
+                    (.8, 1))
   # initialize learner (add params)
-  learner = Learner(state)
+  learner = Learner(state, 10, 0.05, 0.9, 1.0, 0.2)
   learner.run()

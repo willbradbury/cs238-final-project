@@ -4,7 +4,10 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.ticker import IndexLocator
 
+
 class State(object):
+  PERFORMANCE_SCALE_FACTOR = 0.001
+
   def __init__(self, n_iters, school_configs, region_configs, district_configs):
     """ Initializes a new State object, for use in a Learner.
     Params:
@@ -18,14 +21,14 @@ class State(object):
     """
     self.remaining_iters = n_iters
     self.school_states = {id:[cap, 0] for id,cap in school_configs}
-    self.region_states = {id:(school, [[np.random.normal(i_avg,i_sd),0,0] \
-                                        for _ in range(n_res)]) \
+    self.region_states = {id:[school, [[np.random.normal(i_avg,i_sd),0,0] \
+                                        for _ in range(n_res)]] \
                                           for id, school, n_res, i_avg, i_sd \
                                             in region_configs}
     self.students_per_year = {id:n_res for id,_,n_res,_,_ in region_configs}
     self.school_perf = {id:0 for id in self.school_states}
     total_budget, aggressiveness = district_configs
-    self.total_budget = total_budget
+    self.budget_per_student = total_budget
     self.allocate_budget(aggressiveness)
 
     self.initial_params = {'n_iters':n_iters, 'school_configs':school_configs,
@@ -37,12 +40,18 @@ class State(object):
     for region in self.region_states:
       school_sizes[self.region_states[region][0]] += \
           len(self.region_states[region][1])
-    allocations = {id:school_size[id] * \
-                        math.exp(-aggressiveness*self.school_perf[id]) \
+    num_students = sum(school_sizes.values())
+    print(aggressiveness)
+    print(school_sizes)
+    print(self.school_perf)
+    allocations = {id:school_sizes[id]*math.exp(-aggressiveness*self.school_perf[id]) \
                           for id in self.school_states}
+    print(allocations)
     allocations_sum = sum(allocations.values())
+    print([self.budget_per_student*num_students*allocations[school]/(allocations_sum*school_sizes[school]) for school in self.school_states])
     for school in self.school_states:
-      self.school_states[school][1] = self.total_budget*float(allocations[school]) \
+      self.school_states[school][1] = self.budget_per_student*num_students \
+                                        *float(allocations[school]) \
                                         / allocations_sum
 
   def student_perf_change(self, income, school_id, age, cache):
@@ -59,8 +68,8 @@ class State(object):
       school_avg_perf = float(sum_perf)/num_students
       budget_per_student = float(self.school_states[school_id][1])/num_students
       cache[school_id] = school_avg_perf, budget_per_student
-    expected_change = (school_avg_perf+(budget_per_student-1)+income) \
-                        / math.log1p(age)
+    expected_change = self.PERFORMANCE_SCALE_FACTOR * (school_avg_perf +
+                        (budget_per_student-1)+income) / math.log1p(age)
     return np.random.normal(expected_change, .5)
 
   def iterate(self, aggressiveness):
@@ -73,17 +82,18 @@ class State(object):
         student[1] += self.student_perf_change(student[0],
                                                self.region_states[region][0],
                                                student[2], cache)
-      """for _ in self.students_per_year[region]:
-        copy = random.sample(self.region_states[region][1],1)
+      for _ in range(self.students_per_year[region]):
+        copy = random.sample(self.region_states[region][1],1)[0][:]
         copy[2] = 0 # Set age back to 0
-        self.region_states[region][1].append(copy)"""
+        self.region_states[region][1].append(copy)
       self.region_states[region][1] = filter(lambda student: student[2]<=18,
                                         self.region_states[region][1])
+
     self.school_perf = {id:(cache[id][0] if id in cache else 0) \
                           for id in self.school_states}
 
   def possible_actions(self):
-    return range(-2,2.2,0.2)
+    return list(np.linspace(-0.2,0.2,20))
 
   def is_finished(self):
     return self.remaining_iters == 0
@@ -96,7 +106,7 @@ class State(object):
       return 0
 
   def get_reduced_state(self):
-    return (self.remaining_iters, self.school_perf)
+    return (self.remaining_iters, tuple(self.school_perf.values()))
 
   def __repr__(self):
     repr_str = "schools: " + str(self.school_states) \
@@ -168,6 +178,7 @@ class State(object):
     ax.grid(which = 'minor', axis='x', color='w', linewidth=2)
     plt.show()
 
-# TODO(michellelam): remove testing code
-state = State(1, [], [], [1,2])
-state.visualize()
+if __name__ == '__main__':
+  # TODO(michellelam): remove testing code
+  state = State(1, [], [], [1,2])
+  state.visualize()

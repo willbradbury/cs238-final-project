@@ -27,13 +27,13 @@ class Learner(object):
 
   def explore_action(self, state):
     actions = self.simulator.possible_actions()
-    Q_s = np.array([self.Q[state, action] for action in actions])
+    Q_s = np.array([self.Q[(state, action)] for action in actions])
     probs = np.exp(self.exploration_param * Q_s)
     probs /= sum(probs)
     return np.random.choice(actions, p=probs)
 
   def optimal_action(self, state):
-    return max((self.Q[state, action], action)
+    return max((self.Q[(state, action)], action)
         for action in self.simulator.possible_actions())[1]
 
   def update_step(self, s_t, a_t):
