@@ -168,5 +168,6 @@ class State(object):
     ax.grid(which = 'minor', axis='x', color='w', linewidth=2)
     plt.show()
 
+# TODO(michellelam): remove testing code
 state = State(1, [], [], [1,2])
 state.visualize()
