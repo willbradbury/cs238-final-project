@@ -1,6 +1,7 @@
 import numpy as np
 import random
 import math
+import matplotlib.pyplot as plt
 
 class State(object):
   def __init__(self, n_iters, school_configs, region_configs, district_configs):
@@ -102,3 +103,43 @@ class State(object):
 
   def reset(self):
     self.__init__(**self.initial_params)
+
+  def visualize(self, metric_id=0):
+    """ Generate visualization in which:
+          Rows = schools
+          Boxes = regions (neighborhoods)
+          Sub-boxes = students
+            -> which are colored according to the specified metric (student performance, income, etc.)
+    """
+    # metric_ids:
+    # 0 = income
+    # 1 = performance
+
+    # Collect school metrics
+    metrics = {}
+    max_students_per_region = 0
+    for region_id in self.region_states:
+      school_id = self.region_states[region_id][0]
+      for students in self.region_states[region_id][1]:
+        num_students = len(students)
+        if num_students > max_students_per_region:
+          max_students_per_region = num_students # update max students
+        region_metrics = sorted([student[metric_id] for student in students], reverse=True)
+        metrics[school_id] = metrics[school_id].append(region_metrics)
+    max_regions_per_school = np.max([len(school_metrics) for school_metrics in metrics])
+
+    # Convert metrics to grid layout
+    n_super_rows = len(metrics) # num schools
+    n_super_cols =  max_regions_per_school # max num regions assigned to a school
+    box_dim = math.ceil(max_students_per_region**(0.5)) # square dimensions to contain max num students in a region
+    grid = np.zeros((n_super_rows * box_dim, n_super_cols * box_dim))
+    for school_id, school_metrics in metrics.iteritems():
+      for region_id in range(len(school_metrics)):
+        cur_box = (np.array(school_metrics[region_id])).resize((box_dim, box_dim))
+        grid[school_id:(school_id+box_dim), region_id:(region_id+box_dim)] = cur_box
+
+    # Create plot
+    im = plt.imshow(grid, cmap=plt.cm.plasma, interpolation='nearest', origin='upper')
+    plt.show()
+
+
