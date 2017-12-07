@@ -6,7 +6,7 @@ from matplotlib.ticker import IndexLocator
 
 
 class State(object):
-  perf_scale_factor = 0.001
+  perf_scale_factor = 0.1
 
   def __init__(self, n_iters, school_configs, district_configs):
     """ Initializes a new State object, for use in a Learner.
@@ -19,7 +19,7 @@ class State(object):
         aggressiveness)
     """
     self.remaining_iters = n_iters
-    self.district_state = np.array(
+    self.district_state = np.array([
         np.array([[np.random.normal(i_avg,i_sd),
                    np.random.normal(sp_avg, sp_sd),
                    np.random.random_integers(1,18)] \
@@ -28,14 +28,14 @@ class State(object):
                            for school in school_configs])
     self.school_budgets = np.zeros(len(school_configs))
     budget_per_student, aggressiveness = district_configs
-    self.total_budget = budget_per_student
+    self.budget_per_student = budget_per_student
     self.allocate_budget(aggressiveness)
 
     self.initial_params = {'n_iters':n_iters, 'school_configs':school_configs,
                            'district_configs':district_configs}
 
   def allocate_budget(self, aggressiveness):
-    school_sizes = np.vectorize(lambda s: s.shape[0])(self.district_state) 
+    school_sizes = np.vectorize(lambda s: s.shape[0])(self.district_state)
     num_students = np.sum(school_sizes)
     school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
     print "aggressiveness", aggressiveness
@@ -47,12 +47,6 @@ class State(object):
     self.school_budgets = self.budget_per_student*num_students*allocations/allocations_sum
     print "budget per student:", self.school_budgets/school_sizes
 
-  def revert_old_students(student):
-    if student[2] > 18:
-      student[1] = 0
-      student[2] = 0
-    return student
-
   def iterate(self, aggressiveness):
     self.allocate_budget(aggressiveness)
     self.remaining_iters -= 1
@@ -60,10 +54,12 @@ class State(object):
       school_size = school.shape[0]
       school_perf = np.mean(school, axis=0)[1]
       budget_per_student = self.school_budgets[i]/school_size
-      school[(:,1)] += np.ones(school_size)
-      expected_changes = self.perf_scale_factor * (school_perf + (budget_per_student-1) + school[(:,0)]) / np.log1p(school[(:,1)])
-      school[(:,1)] += np.random.normal(expected_changes, .1)
-      school = np.vectorize(revert_old_students)(school)
+      school[:,2] += np.ones(school_size)
+      expected_changes = self.perf_scale_factor * (school_perf + (budget_per_student-1) + school[:,0]) / np.log1p(school[:,2])
+      school[:,1] += np.random.normal(expected_changes, .1)
+      idx = school[:,2]>18
+      school[idx, 1] = 0
+      school[idx, 2] = 1
 
   def possible_actions(self):
     return list(np.linspace(-0.2,0.2,20))
@@ -73,17 +69,20 @@ class State(object):
 
   def reward(self):
     if self.is_finished():
+      school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
       # TODO(wbradbur): Add a measure of inequality
-      return sum(self.school_perf.values())/len(self.school_perf.values())
+      return np.mean(school_perfs)
     else:
       return 0
 
   def get_reduced_state(self):
-    return (self.remaining_iters, tuple(self.school_perf.values()))
+    school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
+    return (self.remaining_iters, tuple(school_perfs))
 
   def __repr__(self):
-    repr_str = "schools: " + str(self.school_states) \
-                + ", school perfs: " + str(self.school_perf)
+    school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
+    repr_str = "schools: " + str(self.school_budgets) \
+                + ", school perfs: " + str(school_perfs)
 
   def reset(self):
     self.__init__(**self.initial_params)
