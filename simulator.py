@@ -6,91 +6,58 @@ from matplotlib.ticker import IndexLocator
 
 
 class State(object):
-  PERFORMANCE_SCALE_FACTOR = 0.001
+  perf_scale_factor = 0.001
 
-  def __init__(self, n_iters, school_configs, region_configs, district_configs):
+  def __init__(self, n_iters, school_configs, district_configs):
     """ Initializes a new State object, for use in a Learner.
     Params:
       n_iters -- The number of iterations the simulation should be run for.
-      school_configs -- A list containing one tuple per school, where each
-        tuple is of the form (school_id, capacity)
-      region_configs -- A list containing one tuple per region, where each
-        tuple is of the form (region_id, assigned_school_id, n_residents,
-        income_avg, income_sd)
-      district_configs -- A tuple of the form (total_budget, aggressiveness)
+      school_configs -- A list containing one list per school, where each list
+        contains one tuple per region, and each tuple is of the form
+        (n_residents, income_avg, income_sd, school_perf_avg, school_perf_sd)
+      district_configs -- A tuple of the form (budget_per_student,
+        aggressiveness)
     """
     self.remaining_iters = n_iters
-    self.school_states = {id:[cap, 0] for id,cap in school_configs}
-    self.region_states = {id:[school, [[np.random.normal(i_avg,i_sd),0,0] \
-                                        for _ in range(n_res)]] \
-                                          for id, school, n_res, i_avg, i_sd \
-                                            in region_configs}
-    self.students_per_year = {id:n_res for id,_,n_res,_,_ in region_configs}
-    self.school_perf = {id:0 for id in self.school_states}
-    total_budget, aggressiveness = district_configs
-    self.budget_per_student = total_budget
+    self.district_state = np.array(
+        np.array([[np.random.normal(i_avg,i_sd),
+                   np.random.normal(sp_avg, sp_sd),
+                   np.random.random_integers(1,18)] \
+                       for n_res, i_avg, i_sd, sp_avg, sp_sd in school
+                         for _ in range(n_res)]) \
+                           for school in school_configs])
+    self.school_budgets = np.zeros(len(school_configs))
+    budget_per_student, aggressiveness = district_configs
+    self.total_budget = budget_per_student
     self.allocate_budget(aggressiveness)
 
     self.initial_params = {'n_iters':n_iters, 'school_configs':school_configs,
-                           'region_configs':region_configs,
                            'district_configs':district_configs}
 
   def allocate_budget(self, aggressiveness):
-    school_sizes = {id:0 for id in self.school_states}
-    for region in self.region_states:
-      school_sizes[self.region_states[region][0]] += \
-          len(self.region_states[region][1])
-    num_students = sum(school_sizes.values())
-    print(aggressiveness)
-    print(school_sizes)
-    print(self.school_perf)
-    allocations = {id:school_sizes[id]*math.exp(-aggressiveness*self.school_perf[id]) \
-                          for id in self.school_states}
-    print(allocations)
-    allocations_sum = sum(allocations.values())
-    print([self.budget_per_student*num_students*allocations[school]/(allocations_sum*school_sizes[school]) for school in self.school_states])
-    for school in self.school_states:
-      self.school_states[school][1] = self.budget_per_student*num_students \
-                                        *float(allocations[school]) \
-                                        / allocations_sum
-
-  def student_perf_change(self, income, school_id, age, cache):
-    if school_id in cache:
-      school_avg_perf, budget_per_student = cache[school_id]
-    else:
-      sum_perf = 0
-      num_students = 0
-      for region in self.region_states:
-        if self.region_states[region][0] == school_id:
-          students = self.region_states[region][1]
-          num_students += len(students)
-          sum_perf += sum(map(lambda student: student[1],students))
-      school_avg_perf = float(sum_perf)/num_students
-      budget_per_student = float(self.school_states[school_id][1])/num_students
-      cache[school_id] = school_avg_perf, budget_per_student
-    expected_change = self.PERFORMANCE_SCALE_FACTOR * (school_avg_perf +
-                        (budget_per_student-1)+income) / math.log1p(age)
-    return np.random.normal(expected_change, .5)
+    school_sizes = np.vectorize(lambda s: s.shape[0])(self.district_state) 
+    num_students = np.sum(school_sizes)
+    school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
+    print "aggressiveness", aggressiveness
+    print "school sizes:", school_sizes
+    print "avg school perfs:", school_perfs
+    allocations = school_sizes*np.exp(-aggressiveness*school_perfs)
+    print "softmax allocations: ", allocations
+    allocations_sum = np.sum(allocations)
+    self.school_budgets = self.budget_per_student*num_students*allocations/allocations_sum
+    print "budget per student:", self.school_budgets/school_sizes
 
   def iterate(self, aggressiveness):
     self.allocate_budget(aggressiveness)
     self.remaining_iters -= 1
-    cache = {}
-    for region in self.region_states:
-      for student in self.region_states[region][1]:
-        student[2] += 1 # Increment age
-        student[1] += self.student_perf_change(student[0],
-                                               self.region_states[region][0],
-                                               student[2], cache)
-      for _ in range(self.students_per_year[region]):
-        copy = random.sample(self.region_states[region][1],1)[0][:]
-        copy[2] = 0 # Set age back to 0
-        self.region_states[region][1].append(copy)
-      self.region_states[region][1] = filter(lambda student: student[2]<=18,
-                                        self.region_states[region][1])
-
-    self.school_perf = {id:(cache[id][0] if id in cache else 0) \
-                          for id in self.school_states}
+    for i,school in enumerate(list(self.district_state)):
+      school_size = school.shape[0]
+      school_perf = np.mean(school, axis=0)[1]
+      budget_per_student = self.school_budgets[i]/school_size
+      school[(:,1)] += np.ones(school_size)
+      expected_changes = self.perf_scale_factor * (school_perf + (budget_per_student-1) + school[(:,0)]) / np.log1p(school[(:,1)])
+      school[(:,1)] += np.random.normal(expected_changes, .1)
+      # revert people over 18 back to 1 and erase school_perf
 
   def possible_actions(self):
     return list(np.linspace(-0.2,0.2,20))
