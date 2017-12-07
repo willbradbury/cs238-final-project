@@ -18,75 +18,76 @@ class State(object):
       district_configs -- A tuple of the form (budget_per_student,
         aggressiveness)
     """
-    self.remaining_iters = n_iters
-    self.district_state = np.array(
-        np.array([[np.random.normal(i_avg,i_sd),
-                   np.random.normal(sp_avg, sp_sd),
-                   np.random.random_integers(1,18)] \
-                       for n_res, i_avg, i_sd, sp_avg, sp_sd in school
-                         for _ in range(n_res)]) \
-                           for school in school_configs])
-    self.school_budgets = np.zeros(len(school_configs))
-    budget_per_student, aggressiveness = district_configs
-    self.total_budget = budget_per_student
-    self.allocate_budget(aggressiveness)
+    return
+    # self.remaining_iters = n_iters
+    # self.district_state = np.array(
+    #     np.array([[np.random.normal(i_avg,i_sd),
+    #                np.random.normal(sp_avg, sp_sd),
+    #                np.random.random_integers(1,18)] \
+    #                    for n_res, i_avg, i_sd, sp_avg, sp_sd in school
+    #                      for _ in range(n_res)]) \
+    #                        for school in school_configs])
+    # self.school_budgets = np.zeros(len(school_configs))
+    # budget_per_student, aggressiveness = district_configs
+    # self.total_budget = budget_per_student
+    # self.allocate_budget(aggressiveness)
 
-    self.initial_params = {'n_iters':n_iters, 'school_configs':school_configs,
-                           'district_configs':district_configs}
+    # self.initial_params = {'n_iters':n_iters, 'school_configs':school_configs,
+    #                        'district_configs':district_configs}
 
-  def allocate_budget(self, aggressiveness):
-    school_sizes = np.vectorize(lambda s: s.shape[0])(self.district_state) 
-    num_students = np.sum(school_sizes)
-    school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
-    print "aggressiveness", aggressiveness
-    print "school sizes:", school_sizes
-    print "avg school perfs:", school_perfs
-    allocations = school_sizes*np.exp(-aggressiveness*school_perfs)
-    print "softmax allocations: ", allocations
-    allocations_sum = np.sum(allocations)
-    self.school_budgets = self.budget_per_student*num_students*allocations/allocations_sum
-    print "budget per student:", self.school_budgets/school_sizes
+  # def allocate_budget(self, aggressiveness):
+  #   school_sizes = np.vectorize(lambda s: s.shape[0])(self.district_state)
+  #   num_students = np.sum(school_sizes)
+  #   school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
+  #   print "aggressiveness", aggressiveness
+  #   print "school sizes:", school_sizes
+  #   print "avg school perfs:", school_perfs
+  #   allocations = school_sizes*np.exp(-aggressiveness*school_perfs)
+  #   print "softmax allocations: ", allocations
+  #   allocations_sum = np.sum(allocations)
+  #   self.school_budgets = self.budget_per_student*num_students*allocations/allocations_sum
+  #   print "budget per student:", self.school_budgets/school_sizes
 
-  def revert_old_students(student):
-    if student[2] > 18:
-      student[1] = 0
-      student[2] = 0
-    return student
+  # def revert_old_students(student):
+  #   if student[2] > 18:
+  #     student[1] = 0
+  #     student[2] = 0
+  #   return student
 
-  def iterate(self, aggressiveness):
-    self.allocate_budget(aggressiveness)
-    self.remaining_iters -= 1
-    for i,school in enumerate(list(self.district_state)):
-      school_size = school.shape[0]
-      school_perf = np.mean(school, axis=0)[1]
-      budget_per_student = self.school_budgets[i]/school_size
-      school[(:,1)] += np.ones(school_size)
-      expected_changes = self.perf_scale_factor * (school_perf + (budget_per_student-1) + school[(:,0)]) / np.log1p(school[(:,1)])
-      school[(:,1)] += np.random.normal(expected_changes, .1)
-      school = np.vectorize(revert_old_students)(school)
+  # def iterate(self, aggressiveness):
+  #   self.allocate_budget(aggressiveness)
+  #   self.remaining_iters -= 1
+  #   for i,school in enumerate(list(self.district_state)):
+  #     school_size = school.shape[0]
+  #     school_perf = np.mean(school, axis=0)[1]
+  #     budget_per_student = self.school_budgets[i]/school_size
+  #     school[(:,1)] += np.ones(school_size)
+  #     expected_changes = self.perf_scale_factor * (school_perf + (budget_per_student-1) + school[(:,0)]) / np.log1p(school[(:,1)])
+  #     school[(:,1)] += np.random.normal(expected_changes, .1)
+  #     school = np.vectorize(revert_old_students)(school)
 
-  def possible_actions(self):
-    return list(np.linspace(-0.2,0.2,20))
+  # def possible_actions(self):
+  #   return list(np.linspace(-0.2,0.2,20))
 
-  def is_finished(self):
-    return self.remaining_iters == 0
+  # def is_finished(self):
+  #   return self.remaining_iters == 0
 
-  def reward(self):
-    if self.is_finished():
-      # TODO(wbradbur): Add a measure of inequality
-      return sum(self.school_perf.values())/len(self.school_perf.values())
-    else:
-      return 0
+  # def reward(self):
+  #   if self.is_finished():
+  #     # TODO(wbradbur): Add a measure of inequality
+  #     return sum(self.school_perf.values())/len(self.school_perf.values())
+  #   else:
+  #     return 0
 
-  def get_reduced_state(self):
-    return (self.remaining_iters, tuple(self.school_perf.values()))
+  # def get_reduced_state(self):
+  #   return (self.remaining_iters, tuple(self.school_perf.values()))
 
-  def __repr__(self):
-    repr_str = "schools: " + str(self.school_states) \
-                + ", school perfs: " + str(self.school_perf)
+  # def __repr__(self):
+  #   repr_str = "schools: " + str(self.school_states) \
+  #               + ", school perfs: " + str(self.school_perf)
 
-  def reset(self):
-    self.__init__(**self.initial_params)
+  # def reset(self):
+  #   self.__init__(**self.initial_params)
 
   def visualize(self, metric_id=0):
     """ Generate visualization in which:
@@ -99,29 +100,56 @@ class State(object):
     # 0 = income
     # 1 = performance
 
-    test_region_states = {
-      0: (0, [[1],[1],[1],[2],[3]]),
-      1: (0, [[1],[1],[1],[1],[1]]),
-      2: (0, [[1],[1],[1]]),
-      3: (1, [[3],[3],[3],[4],[4]])
-    }
-    self.region_states = test_region_states
+    # test_region_states = {
+    #   0: (0, [[1],[1],[1],[2],[3]]),
+    #   1: (0, [[1],[1],[1],[1],[1]]),
+    #   2: (0, [[1],[1],[1]]),
+    #   3: (1, [[3],[3],[3],[4],[4]])
+    # }
+    # self.region_states = test_region_states
+
+    test_district_state = [
+      [1],[1],[1],[2],[3],
+      [1],[1],[1],[1],[1],
+      [1],[1],[1],
+      [3],[3],[3],[4],[4]
+    ]
+    district_state = np.array(test_district_state)
+
+    school_configs = [[(5,0), (5,0), (3,0)], [(5,0)]]
+    self.initial_params = {'n_iters':2, 'school_configs':school_configs,
+                           'district_configs':[]}
 
     # Collect school metrics
-    metrics = {}
+    metrics = []
     max_students_per_region = 0
-    for region_id in self.region_states:
-      school_id = self.region_states[region_id][0]
-      students = self.region_states[region_id][1]
-      num_students = len(students)
-      if num_students > max_students_per_region:
-        max_students_per_region = num_students # update max students
-      region_metrics = sorted([student[metric_id] for student in students], reverse=True)
-      if school_id in metrics:
-        metrics[school_id].append(region_metrics)
-      else:
-        metrics[school_id] = [region_metrics]
-    max_regions_per_school = np.max([len(school_metrics) for _, school_metrics in metrics.iteritems()])
+    student_i = 0
+
+    for school in self.initial_params['school_configs']:
+      #(n_residents, income_avg, income_sd, school_perf_avg, school_perf_sd)
+      school_metrics = []
+      for region in school:
+        n_residents = region[0]
+        if n_residents > max_students_per_region:
+          max_students_per_region = n_residents # update max students
+        region_metrics = sorted([student[metric_id] for student in district_state[student_i:student_i+n_residents]], reverse=True)
+        school_metrics.append(region_metrics)
+        student_i += n_residents
+      metrics.append(school_metrics)
+    max_regions_per_school = np.max([len(school_metrics) for school_metrics in metrics])
+
+    # for region_id in self.region_states:
+    #   school_id = self.region_states[region_id][0]
+    #   students = self.region_states[region_id][1]
+    #   num_students = len(students)
+    #   if num_students > max_students_per_region:
+    #     max_students_per_region = num_students # update max students
+    #   region_metrics = sorted([student[metric_id] for student in students], reverse=True)
+    #   if school_id in metrics:
+    #     metrics[school_id].append(region_metrics)
+    #   else:
+    #     metrics[school_id] = [region_metrics]
+    # max_regions_per_school = np.max([len(school_metrics) for _, school_metrics in metrics.iteritems()])
 
     # Convert metrics to grid layout
     n_super_rows = len(metrics) # num schools
@@ -130,7 +158,8 @@ class State(object):
     print "n_super_rows: %d, n_super_cols: %d, box_dim: %d" % (n_super_rows, n_super_cols, box_dim)
 
     grid = np.zeros((n_super_rows * box_dim, n_super_cols * box_dim))
-    for school_id, school_metrics in metrics.iteritems():
+    for school_id in range(n_super_rows):
+      school_metrics = metrics[school_id]
       for region_id in range(len(school_metrics)):
         cur_box = np.array(school_metrics[region_id])
         cur_box.resize(box_dim, box_dim)
@@ -153,5 +182,5 @@ class State(object):
 
 if __name__ == '__main__':
   # TODO(michellelam): remove testing code
-  state = State(1, [], [], [1,2])
+  state = State(1, [], [])
   state.visualize()
