@@ -47,6 +47,12 @@ class State(object):
     self.school_budgets = self.budget_per_student*num_students*allocations/allocations_sum
     print "budget per student:", self.school_budgets/school_sizes
 
+  def revert_old_students(student):
+    if student[2] > 18:
+      student[1] = 0
+      student[2] = 0
+    return student
+
   def iterate(self, aggressiveness):
     self.allocate_budget(aggressiveness)
     self.remaining_iters -= 1
@@ -57,7 +63,7 @@ class State(object):
       school[(:,1)] += np.ones(school_size)
       expected_changes = self.perf_scale_factor * (school_perf + (budget_per_student-1) + school[(:,0)]) / np.log1p(school[(:,1)])
       school[(:,1)] += np.random.normal(expected_changes, .1)
-      # revert people over 18 back to 1 and erase school_perf
+      school = np.vectorize(revert_old_students)(school)
 
   def possible_actions(self):
     return list(np.linspace(-0.2,0.2,20))
