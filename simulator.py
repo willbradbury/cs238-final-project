@@ -29,6 +29,7 @@ class State(object):
     self.school_budgets = np.zeros(len(school_configs))
     budget_per_student, aggressiveness = district_configs
     self.budget_per_student = budget_per_student
+    self.school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
     self.allocate_budget(aggressiveness)
 
     self.initial_params = {'n_iters':n_iters, 'school_configs':school_configs,
@@ -37,11 +38,10 @@ class State(object):
   def allocate_budget(self, aggressiveness):
     school_sizes = np.vectorize(lambda s: s.shape[0])(self.district_state)
     num_students = np.sum(school_sizes)
-    school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
     print "aggressiveness", aggressiveness
     print "school sizes:", school_sizes
     print "avg school perfs:", school_perfs
-    allocations = school_sizes*np.exp(-aggressiveness*school_perfs)
+    allocations = school_sizes*np.exp(-aggressiveness*self.school_perfs)
     print "softmax allocations: ", allocations
     allocations_sum = np.sum(allocations)
     self.school_budgets = self.budget_per_student*num_students*allocations/allocations_sum
@@ -60,29 +60,26 @@ class State(object):
       idx = school[:,2]>18
       school[idx, 1] = 0
       school[idx, 2] = 1
+    self.school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
 
   def possible_actions(self):
-    return list(np.linspace(-0.2,0.2,20))
+    return list(np.linspace(-0.2,0.2,10))
 
   def is_finished(self):
     return self.remaining_iters == 0
 
   def reward(self):
-    if self.is_finished():
-      school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
-      # TODO(wbradbur): Add a measure of inequality
-      return np.mean(school_perfs)
-    else:
-      return 0
+    if self.remaining_iters == 0: return np.mean(self.school_perfs)
+    else: return 0
 
   def get_reduced_state(self):
-    school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
-    return (self.remaining_iters, tuple(school_perfs))
+    clamped_school_perfs = np.min(school_perfs, 2*np.ones(school_perfs.shape[0]))
+    clamped_school_perfs = np.max(school_perfs, -2*np.ones(school_perfs.shape[0]))
+    return np.concatenate(clamped_school_perfs, np.array(self.remaining_iters))
 
   def __repr__(self):
-    school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
     repr_str = "schools: " + str(self.school_budgets) \
-                + ", school perfs: " + str(school_perfs)
+                + ", school perfs: " + str(self.school_perfs)
 
   def reset(self):
     self.__init__(**self.initial_params)
