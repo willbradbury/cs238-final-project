@@ -73,3 +73,6 @@ class Learner(object):
         self.simulator.iterate(a_t)
         s_t, a_t = self.update_step(s_t, a_t)
       self.update_step(s_t, a_t)
+      self.simulator.reset()
+    self.simulator.visualize() # Final outcome visualization
+
