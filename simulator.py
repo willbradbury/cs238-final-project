@@ -87,49 +87,62 @@ class State(object):
   def reset(self):
     self.__init__(**self.initial_params)
 
-  def visualize(self, metric_id=0):
+  def visualize(self, metric_id=0, debug=False):
     """ Generate visualization in which:
           Rows = schools
           Boxes = regions (neighborhoods)
           Sub-boxes = students
             -> which are colored according to the specified metric (student performance, income, etc.)
+
+
+          school configs has list of schools
+          ea school has list of tuples of stats for each region
+
+          district_state: [schools: [regions: [residents: []]]]
     """
 
-    test_district_state = [
-      [1],[1],[1],[2],[3],
-      [1],[1],[1],[1],[1],
-      [1],[1],[1],
-      [3],[3],[3],[4],[4]
-    ]
-    district_state = np.array(test_district_state)
+    # test_district_state = [
+    #   [[1],[1],[1],[2],[3], [1],[1],[1],[1],[1], [1],[1],[1]],
+    #   [[3],[3],[3],[4],[4]]
+    # ]
+    # district_state = np.array(test_district_state)
 
-    school_configs = [[(5,0), (5,0), (3,0)], [(5,0)]]
-    self.initial_params = {'n_iters':2, 'school_configs':school_configs,
-                           'district_configs':[]}
+    # school_configs = [[(5,0), (5,0), (3,0)], [(5,0)]]
+    # self.initial_params = {'n_iters':2, 'school_configs':school_configs,
+    #                        'district_configs':[]}
 
     # Collect school metrics
     metrics = []
     max_students_per_region = 0
-    student_i = 0
-
+    school_i = 0
     for school in self.initial_params['school_configs']:
       #(n_residents, income_avg, income_sd, school_perf_avg, school_perf_sd)
       school_metrics = []
+      student_i = 0
       for region in school:
+        # n_residents = len(region)
         n_residents = region[0]
+        if debug:
+          print "n_residents", n_residents
         if n_residents > max_students_per_region:
           max_students_per_region = n_residents # update max students
-        region_metrics = sorted([student[metric_id] for student in district_state[student_i:student_i+n_residents]], reverse=True)
+        region_metrics = sorted([student[metric_id] for student in self.district_state[school_i][student_i:student_i+n_residents]], reverse=True)
         school_metrics.append(region_metrics)
+        if debug:
+          print "region_metrics", region_metrics
         student_i += n_residents
       metrics.append(school_metrics)
+      if debug:
+        print "school_metrics", school_metrics
+      school_i += 1
     max_regions_per_school = np.max([len(school_metrics) for school_metrics in metrics])
 
     # Convert metrics to grid layout
     n_super_rows = len(metrics) # num schools
     n_super_cols =  max_regions_per_school # max num regions assigned to a school
     box_dim = int(math.ceil(max_students_per_region**(0.5))) # square dimensions to contain max num students in a region
-    print "n_super_rows: %d, n_super_cols: %d, box_dim: %d" % (n_super_rows, n_super_cols, box_dim)
+    if debug:
+      print "n_super_rows: %d, n_super_cols: %d, box_dim: %d" % (n_super_rows, n_super_cols, box_dim)
 
     grid = np.zeros((n_super_rows * box_dim, n_super_cols * box_dim))
     for school_id in range(n_super_rows):
@@ -137,24 +150,27 @@ class State(object):
       for region_id in range(len(school_metrics)):
         cur_box = np.array(school_metrics[region_id])
         cur_box.resize(box_dim, box_dim)
-        print "school_id: %d, region_id: %d" % (school_id, region_id)
+        if debug:
+          print "school_id: %d, region_id: %d" % (school_id, region_id)
         start_row = school_id * box_dim
         start_col = region_id * box_dim
         grid[start_row:(start_row+box_dim), start_col:(start_col+box_dim)] = cur_box
-    print grid
+    grid[grid == 0.0] = np.nan # Set empty entries to NaN (to leave un-colored)
+    if debug:
+      print "grid:", grid
 
     # Create plot
     fig = plt.figure()
     ax = fig.add_subplot(111)
     im = plt.imshow(grid, cmap=plt.cm.plasma, interpolation='nearest', origin='upper')
-    minor_locator = IndexLocator(3, 0)
+    minor_locator = IndexLocator(box_dim, 0)
     ax.yaxis.set_minor_locator(minor_locator)
     ax.xaxis.set_minor_locator(minor_locator)
     ax.grid(which = 'minor', axis='y', color='w', linewidth=5)
     ax.grid(which = 'minor', axis='x', color='w', linewidth=2)
     plt.show()
 
-if __name__ == '__main__':
-  # TODO(michellelam): remove testing code
-  state = State(1, [], [])
-  state.visualize()
+# if __name__ == '__main__':
+#   # TODO(michellelam): remove testing code
+#   state = State(1, [], [])
+#   state.visualize()
