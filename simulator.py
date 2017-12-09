@@ -71,7 +71,9 @@ class State(object):
     return self.remaining_iters == 0
 
   def reward(self):
-    if self.remaining_iters == 0: return np.mean(self.school_perfs)
+    if self.remaining_iters == 0:
+      # return np.mean(self.school_perfs) - np.std(self.school_perfs)
+      return np.mean(self.school_perfs)
     else: return 0
 
   def get_reduced_state(self):
