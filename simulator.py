@@ -7,6 +7,7 @@ from matplotlib.ticker import IndexLocator
 
 class State(object):
   perf_scale_factor = 0.1
+  max_perf = 2
 
   def __init__(self, n_iters, school_configs, district_configs):
     """ Initializes a new State object, for use in a Learner.
@@ -55,7 +56,8 @@ class State(object):
       school_perf = np.mean(school, axis=0)[1]
       budget_per_student = self.school_budgets[i]/school_size
       school[:,2] += np.ones(school_size)
-      expected_changes = self.perf_scale_factor * (school_perf + (budget_per_student-1) + school[:,0]) / np.log1p(school[:,2])
+      expected_changes = self.perf_scale_factor * \
+          (school_perf + (budget_per_student-1) + school[:,0]) / np.log1p(school[:,2])
       school[:,1] += np.random.normal(expected_changes, .1)
       idx = school[:,2]>18
       school[idx, 1] = 0
@@ -73,9 +75,9 @@ class State(object):
     else: return 0
 
   def get_reduced_state(self):
-    clamped_school_perfs = np.min(school_perfs, 2*np.ones(school_perfs.shape[0]))
-    clamped_school_perfs = np.max(school_perfs, -2*np.ones(school_perfs.shape[0]))
-    return np.concatenate(clamped_school_perfs, np.array(self.remaining_iters))
+    clamped_school_perfs = np.min(school_perfs, self.max_perf*np.ones(school_perfs.shape[0]))
+    clamped_school_perfs = np.max(school_perfs, -self.max_perf*np.ones(school_perfs.shape[0]))
+    return np.hstack(self.remaining_iters, clamped_school_perfs)
 
   def __repr__(self):
     repr_str = "schools: " + str(self.school_budgets) \
