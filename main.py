@@ -36,4 +36,5 @@ if __name__ == '__main__':
                       [(300, 1, 1, 0.05, 0.5)]], (0.8, 1))
   # initialize learner (add params)
   learner = Learner(state, 10, 0.05, 0.9, 1.0, 0.2)
-  learner.run()
+  learner.beta(np.array([0, -1.1, 0, 0.45]))
+  # learner.run()

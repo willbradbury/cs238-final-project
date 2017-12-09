@@ -1,7 +1,10 @@
+import itertools
 import numpy as np
 from collections import defaultdict
 
 class Learner(object):
+  grid_mesh_count = 50
+
   def __init__(self, simulator, n_epochs, alpha, gamma, exploration_param,
                     decay_param):
     """ Learns a policy using Sarsa-Lambda given a State instance.
@@ -22,6 +25,12 @@ class Learner(object):
     self.exploration_param = exploration_param
     self.decay_param = decay_param
 
+    state_size = len(simulator.get_reduced_state())
+    self.shift_array = np.array([0] + [simulator.max_perf]*(state_size-1))
+    self.scale_array = np.array([1] + [grid_mesh_count]*(state_size-1))
+    self.rounding_matrix = np.array(list(itertools.product([-1,1], repeat=state_size)))
+
+    # TODO(shivaal): make Q an np.matrix
     self.Q = defaultdict(float)
     self.N = defaultdict(int)
 
@@ -46,6 +55,15 @@ class Learner(object):
       self.Q[(s,a)] += self.alpha * delta * self.N[(s,a)]
       self.N[(s,a)] *= self.gamma * self.decay_param
     return s_prime, a_prime
+
+  def beta(self, state, action):
+    # floor and ceiling every dimension in the state to every
+    # shift numpy vector
+    translated_state = (state + self.shift_array) * self.scale_array
+    print(translated_state.shape)
+    # multiply state
+    rounded_matrix = np.ceil(translated_state * self.rounding_matrix) * self.rounding_matrix
+    print(rounded_matrix)
 
   def run(self):
     for _ in xrange(self.n_epochs):
