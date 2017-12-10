@@ -3,7 +3,7 @@ import numpy as np
 from collections import defaultdict
 
 class Learner(object):
-  grid_mesh_count = 10
+  grid_mesh_count = 5
   epsilon = 1e-4
 
   def __init__(self, simulator, alpha, gamma, exploration_param, decay_param,
@@ -46,23 +46,16 @@ class Learner(object):
   def theta_utility(self, state, actions, idx, weights):
     if self.local_approx:
       weights = weights.flatten()
-      # return [np.dot(self.theta[np.hsplit(np.insert(idx, idx.shape[1], action_idx, axis=1), idx.shape[1]+1)].flatten(), weights)
-                # for action_idx in np.round((actions+self.simulator.max_aggressiveness)*(self.simulator.num_actions-1)/(2*self.simulator.max_aggressiveness))]
       return [np.dot(self.theta[self.theta_index(state, action, idx)].flatten(), weights) for action in actions]
     else:
       return [self.theta[(state, action)] for action in actions]
 
   def beta(self, state):
     if self.local_approx:
-      # print state
       translated_state = (state + self.shift_array) * self.scale_array
       idx = (np.ceil(translated_state * self.rounding_matrix) * self.rounding_matrix).astype(np.int32)
       weights = 1 / (np.sum((translated_state - idx)**2, axis=1) + self.epsilon)
       weights /= np.sum(weights)
-      # print translated_state
-      # print idx
-      # print weights
-
       return (idx, weights.reshape(-1,1))
     else:
       return (None, 1)
@@ -70,7 +63,6 @@ class Learner(object):
   def explore_action(self, state, idx, weights):
     actions = self.simulator.possible_actions()
     Q_s = np.array(self.theta_utility(state, actions, idx, weights))
-    # print(Q_s)
     probs = np.exp(self.exploration_param * Q_s)
     probs /= np.sum(probs)
     return np.random.choice(actions, p=probs)
@@ -107,7 +99,7 @@ class Learner(object):
     print self.theta.size
     print "training:"
     for epoch in xrange(n_epochs):
-      print 'epoch', epoch
+      if epoch % 20 == 0: print 'epoch', epoch
       s_t = self.simulator.get_reduced_state(as_np_array=self.local_approx)
       idx_t, weights_t = self.beta(s_t)
       a_t = self.explore_action(s_t, idx_t, weights_t)
@@ -121,13 +113,13 @@ class Learner(object):
       print np.count_nonzero(self.theta)
     else:
       print len(self.theta)
-    # self.simulator.visualize() # Final outcome visualization
 
   def evaluate(self, n_epochs):
     print "evaluating:"
     total_reward = 0.0
     for epoch in xrange(n_epochs):
-      print epoch
+      if epoch == 0:
+        self.simulator.visualize(metric_id=1) # Final outcome visualization
       s_t = self.simulator.get_reduced_state(as_np_array=self.local_approx)
       idx_t, weights_t = self.beta(s_t)
       a_t = self.optimal_action(s_t, idx_t, weights_t)
@@ -137,5 +129,56 @@ class Learner(object):
         total_reward += r_t
       r_t, _, _ = self.run_step(s_t, a_t)
       total_reward += r_t
+      if epoch == 0:
+        self.simulator.visualize(metric_id=1) # Final outcome visualization
       self.simulator.reset()
     return total_reward / n_epochs
+
+  def evaluate_random(self, n_epochs):
+    print "evaluating:"
+    total_reward = 0.0
+    for epoch in xrange(n_epochs):
+      while not self.simulator.is_finished():
+        a_t = np.random.choice(self.simulator.possible_actions())
+        self.simulator.iterate(a_t)
+        total_reward += self.simulator.reward()
+      total_reward += self.simulator.reward()
+      self.simulator.reset()
+    return 'random,'+str(total_reward / n_epochs)
+
+  def evaluate_aggressive(self, n_epochs):
+    print "evaluating:"
+    total_reward = 0.0
+    for epoch in xrange(n_epochs):
+      while not self.simulator.is_finished():
+        self.simulator.iterate(self.simulator.max_aggressiveness)
+        total_reward += self.simulator.reward()
+      total_reward += self.simulator.reward()
+      self.simulator.reset()
+    return 'aggressive,'+str(total_reward / n_epochs)
+
+  def evaluate_status_quo(self, n_epochs):
+    print "evaluating:"
+    total_reward = 0.0
+    for epoch in xrange(n_epochs):
+      while not self.simulator.is_finished():
+        self.simulator.iterate(0)
+        total_reward += self.simulator.reward()
+      total_reward += self.simulator.reward()
+      self.simulator.reset()
+    return 'status_quo,'+str(total_reward / n_epochs)
+
+  def evaluate_conservative(self, n_epochs):
+    print "evaluating:"
+    total_reward = 0.0
+    for epoch in xrange(n_epochs):
+      if epoch == 0:
+        self.simulator.visualize(metric_id=1) # Final outcome visualization
+      while not self.simulator.is_finished():
+        self.simulator.iterate(-self.simulator.max_aggressiveness)
+        total_reward += self.simulator.reward()
+      total_reward += self.simulator.reward()
+      if epoch == 0:
+        self.simulator.visualize(metric_id=1) # Final outcome visualization
+      self.simulator.reset()
+    return 'conservative,'+str(total_reward / n_epochs)

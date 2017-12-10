@@ -6,11 +6,11 @@ from matplotlib.ticker import IndexLocator
 
 
 class State(object):
-  budget_scale_factor = 4
+  budget_scale_factor = 20
   perf_scale_factor = 0.1
-  max_perf = 1.0
+  max_perf = 5.0
   num_actions = 10
-  max_aggressiveness = 8.0
+  max_aggressiveness = 10.0
 
   def __init__(self, n_iters, school_configs, district_configs, debug=False):
     """ Initializes a new State object, for use in a Learner.
@@ -75,7 +75,6 @@ class State(object):
     return self.remaining_iters == 0
 
   def reward(self):
-    # return np.mean(self.school_perfs)
     return np.mean(self.school_perfs) - np.std(self.school_perfs)
     # if self.remaining_iters == 0:
     #   return np.mean(self.school_perfs) - np.std(self.school_perfs)
@@ -157,7 +156,9 @@ class State(object):
     if debug:
       print "n_super_rows: %d, n_super_cols: %d, box_dim: %d" % (n_super_rows, n_super_cols, box_dim)
 
-    grid = np.zeros((n_super_rows * box_dim, n_super_cols * box_dim))
+    # grid = np.zeros((n_super_rows * box_dim, n_super_cols * box_dim))
+    grid = np.empty((n_super_rows * box_dim, n_super_cols * box_dim))
+    grid[:] = np.nan
     for school_id in range(n_super_rows):
       school_metrics = metrics[school_id]
       for region_id in range(len(school_metrics)):
@@ -168,17 +169,18 @@ class State(object):
         start_row = school_id * box_dim
         start_col = region_id * box_dim
         grid[start_row:(start_row+box_dim), start_col:(start_col+box_dim)] = cur_box
-    grid[grid == 0.0] = np.nan # Set empty entries to NaN (to leave un-colored)
+    # grid[grid == 0.0] = np.nan # Set empty entries to NaN (to leave un-colored)
     if debug:
       print "grid:", grid
 
     # Create plot
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    im = plt.imshow(grid, cmap=plt.cm.plasma, interpolation='nearest', origin='upper')
+    im = plt.imshow(grid, cmap=plt.cm.coolwarm, interpolation='nearest', origin='upper', vmin=-6, vmax=6)
     minor_locator = IndexLocator(box_dim, 0)
     ax.yaxis.set_minor_locator(minor_locator)
     ax.xaxis.set_minor_locator(minor_locator)
+    plt.colorbar()
     ax.grid(which = 'minor', axis='y', color='w', linewidth=5)
     ax.grid(which = 'minor', axis='x', color='w', linewidth=2)
     plt.show()
