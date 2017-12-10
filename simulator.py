@@ -6,10 +6,11 @@ from matplotlib.ticker import IndexLocator
 
 
 class State(object):
+  budget_scale_factor = 4
   perf_scale_factor = 0.1
   max_perf = 1.0
   num_actions = 10
-  max_aggressiveness = 1.6
+  max_aggressiveness = 8.0
 
   def __init__(self, n_iters, school_configs, district_configs, debug=False):
     """ Initializes a new State object, for use in a Learner.
@@ -60,7 +61,7 @@ class State(object):
       budget_per_student = self.school_budgets[i]/school_size
       school[:,2] += np.ones(school_size)
       expected_changes = self.perf_scale_factor * \
-          (school_perf + 2*(budget_per_student-1) + school[:,0]) / np.log1p(school[:,2])
+          (school_perf + self.budget_scale_factor*(budget_per_student-1) + school[:,0]) / np.log1p(school[:,2])
       school[:,1] += np.random.normal(expected_changes, .1)
       idx = school[:,2]>18
       school[idx, 1] = 0
@@ -74,14 +75,17 @@ class State(object):
     return self.remaining_iters == 0
 
   def reward(self):
-    if self.remaining_iters == 0:
-      return np.mean(self.school_perfs)
-    else:
-      return 0
+    # return np.mean(self.school_perfs)
+    return np.mean(self.school_perfs) - np.std(self.school_perfs)
+    # if self.remaining_iters == 0:
+    #   return np.mean(self.school_perfs) - np.std(self.school_perfs)
+    #   # return np.mean(self.school_perfs)
+    # else:
+    #   return 0
 
   def get_reduced_state(self, as_np_array=False):
     clamped_school_perfs = np.minimum(self.school_perfs, self.max_perf)
-    clamped_school_perfs = np.maximum(self.school_perfs, -self.max_perf)
+    clamped_school_perfs = np.maximum(clamped_school_perfs, -self.max_perf)
     reduced_state = np.hstack((self.remaining_iters, clamped_school_perfs))
     if as_np_array:
       return reduced_state
