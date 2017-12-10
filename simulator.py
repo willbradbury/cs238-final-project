@@ -7,9 +7,11 @@ from matplotlib.ticker import IndexLocator
 
 class State(object):
   perf_scale_factor = 0.1
-  max_perf = 2
+  max_perf = 1.0
+  num_actions = 10
+  max_aggressiveness = 1.6
 
-  def __init__(self, n_iters, school_configs, district_configs):
+  def __init__(self, n_iters, school_configs, district_configs, debug=False):
     """ Initializes a new State object, for use in a Learner.
     Params:
       n_iters -- The number of iterations the simulation should be run for.
@@ -19,6 +21,7 @@ class State(object):
       district_configs -- A tuple of the form (budget_per_student,
         aggressiveness)
     """
+    self.debug = debug
     self.remaining_iters = n_iters
     self.district_state = np.array([
         np.array([[np.random.normal(i_avg,i_sd),
@@ -34,19 +37,19 @@ class State(object):
     self.allocate_budget(aggressiveness)
 
     self.initial_params = {'n_iters':n_iters, 'school_configs':school_configs,
-                           'district_configs':district_configs}
+                           'district_configs':district_configs, 'debug':debug}
 
   def allocate_budget(self, aggressiveness):
     school_sizes = np.vectorize(lambda s: s.shape[0])(self.district_state)
     num_students = np.sum(school_sizes)
-    print "aggressiveness", aggressiveness
-    print "school sizes:", school_sizes
-    print "avg school perfs:", school_perfs
     allocations = school_sizes*np.exp(-aggressiveness*self.school_perfs)
-    print "softmax allocations: ", allocations
-    allocations_sum = np.sum(allocations)
-    self.school_budgets = self.budget_per_student*num_students*allocations/allocations_sum
-    print "budget per student:", self.school_budgets/school_sizes
+    self.school_budgets = self.budget_per_student*num_students*allocations/np.sum(allocations)
+    if self.debug:
+      print "aggressiveness", aggressiveness
+      print "school sizes:", school_sizes
+      print "avg school perfs:", self.school_perfs
+      print "softmax allocations:", allocations
+      print "budget per student:", self.school_budgets/school_sizes
 
   def iterate(self, aggressiveness):
     self.allocate_budget(aggressiveness)
@@ -57,7 +60,7 @@ class State(object):
       budget_per_student = self.school_budgets[i]/school_size
       school[:,2] += np.ones(school_size)
       expected_changes = self.perf_scale_factor * \
-          (school_perf + (budget_per_student-1) + school[:,0]) / np.log1p(school[:,2])
+          (school_perf + 2*(budget_per_student-1) + school[:,0]) / np.log1p(school[:,2])
       school[:,1] += np.random.normal(expected_changes, .1)
       idx = school[:,2]>18
       school[idx, 1] = 0
@@ -65,19 +68,25 @@ class State(object):
     self.school_perfs = np.vectorize(lambda s: np.mean(s,axis=0)[1])(self.district_state)
 
   def possible_actions(self):
-    return list(np.linspace(-0.2,0.2,10))
+    return np.linspace(-self.max_aggressiveness, self.max_aggressiveness, self.num_actions)
 
   def is_finished(self):
     return self.remaining_iters == 0
 
   def reward(self):
-    if self.remaining_iters == 0: return np.mean(self.school_perfs)
-    else: return 0
+    if self.remaining_iters == 0:
+      return np.mean(self.school_perfs)
+    else:
+      return 0
 
-  def get_reduced_state(self):
-    clamped_school_perfs = np.min(school_perfs, self.max_perf*np.ones(school_perfs.shape[0]))
-    clamped_school_perfs = np.max(school_perfs, -self.max_perf*np.ones(school_perfs.shape[0]))
-    return np.hstack(self.remaining_iters, clamped_school_perfs)
+  def get_reduced_state(self, as_np_array=False):
+    clamped_school_perfs = np.minimum(self.school_perfs, self.max_perf)
+    clamped_school_perfs = np.maximum(self.school_perfs, -self.max_perf)
+    reduced_state = np.hstack((self.remaining_iters, clamped_school_perfs))
+    if as_np_array:
+      return reduced_state
+    else:
+      return tuple(reduced_state)
 
   def __repr__(self):
     repr_str = "schools: " + str(self.school_budgets) \
@@ -125,7 +134,8 @@ class State(object):
           print "n_residents", n_residents
         if n_residents > max_students_per_region:
           max_students_per_region = n_residents # update max students
-        region_metrics = sorted([student[metric_id] for student in self.district_state[school_i][student_i:student_i+n_residents]], reverse=True)
+        region_metrics = sorted([student[metric_id]
+            for student in self.district_state[school_i][student_i:student_i+n_residents]], reverse=True)
         school_metrics.append(region_metrics)
         if debug:
           print "region_metrics", region_metrics

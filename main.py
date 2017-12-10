@@ -28,13 +28,16 @@ Learner:
 '''
 from learn import Learner
 from simulator import State
+import numpy as np
 
 if __name__ == '__main__':
   # initialize simulator (add params)
   state = State(80, [[(100, 1, 2, 0.05, 0.5), (200, -1, 1, -0.05, 0.5)],
                       [(200, 0, 3, 0, 0.5), (200, -1, 1, -0.05, 0.5)],
-                      [(300, 1, 1, 0.05, 0.5)]], (0.8, 1))
+                      [(300, 1, 1, 0.05, 0.5)]], (0.8, 1), debug=False)
   # initialize learner (add params)
-  learner = Learner(state, 10, 0.05, 0.9, 1.0, 0.2)
-  learner.beta(np.array([0, -1.1, 0, 0.45]))
-  # learner.run()
+  learner = Learner(state, alpha=0.05, gamma=0.9, exploration_param=0.5, decay_param=0.2, local_approx=True)
+
+  # learner.beta(np.array([4, -1.11, 0.011, 0.457]))
+  learner.train(100)
+  print learner.evaluate(10)
